@@ -1,0 +1,169 @@
+#!/bin/sh
+###############################################################################
+#                                                                             #
+#         MPV955 Digital-Analogic Converter Card Device Driver                #
+#                                                                             #
+#                       Copyright (C) 2005-2006                               #
+#               De Sapio Fioravante - desapio82@libero.it                     #
+#           Ferrara Francesco Saverio - fs.ferrara@gmail.com                  #
+#                                                                             #
+#                                                                             #
+# This program is free software; you can redistribute it and/or modify it     #
+# under the terms of the GNU General Public License as published by the Free  #
+# Software Foundation; either version 2 of the License, or (at your option)   #
+# any later version.                                                          #
+#                                                                             #
+# This program is distributed in the hope that it will be useful, but         #
+# WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY  #
+# or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License    #
+# for more details.                                                           #
+#                                                                             #
+# You should have received a copy of the GNU General Public License along     #
+# with this program; if not, write to the Free Software Foundation, Inc., 59  #
+# Temple Place - Suite 330, Boston, MA  02111-1307, USA.                      #
+#                                                                             #
+#                                                                             #
+#                                                                             #
+###############################################################################
+#                                                                             
+# Script di installazione del dispositivo                                     
+#                                                                             
+###############################################################################
+
+
+
+###############################################################################
+#                                                                             
+# SEZIONE COSTANTI                                                            
+#                                                                             
+###############################################################################
+
+DRIVER_DIR1=drivers.vmpc/MPV955
+
+DRIVER_LIB=libdrivers_vmpc.a
+DEVICE_LIB=libdevices_vmpc.a
+
+DEVICE_NAME1=mpv955info
+
+CFG_FILE_NAME1=MPV955.cfg
+
+
+TEXT_FILE="MPV955 Device Driver"
+trap '' 1 2 3 15 18
+myname=$0
+
+if [ "$REAL_KERN_INSTALL" = "lynx_kern_install" ]; then
+	echo "Cannot execute Install scripts with the environment"
+	echo "variable REAL_KERN_INSTALL set to lynx_kern_install."
+	echo "It must be customer_kern_install."
+	echo "Exiting ..."
+	exit 0;
+fi
+
+if [ ! -r "$ENV_PREFIX/ENVIRONMENT" ]; then
+	echo "Cannot find ENVIRONMENT file in $ENV_PREFIX/";
+	echo "Exiting."
+	exit 0;
+else
+	choice=`grep PLATFORM= $ENV_PREFIX/ENVIRONMENT | cut -f2 -d'='`
+fi
+
+echo
+echo Installing $TEXT_FILE
+echo
+
+response=invalid
+while [ "$response" = "invalid" ]
+do
+	echo -n "Proceed with installation (y/n) [y]? "
+	read response
+	if [ "$response" = "" ]
+	then
+		response=y
+	fi
+
+	case $response in
+		Y*|y*)
+			echo
+			echo "Continuing the installation of the driver...";
+			response=yes;;
+		N*|n*)
+			echo "quitting installation.";
+			response=no;
+			exit 0;;
+		*)
+			response=invalid;;
+	esac
+done
+
+
+# Update the Makefile in the device.vmpc dir
+echo
+echo Updating $ENV_PREFIX/sys/lib/$DEVICE_LIB
+echo
+cd $ENV_PREFIX/sys/devices.vmpc
+cp Makefile Makefile.noMPV955
+sed /^FILES/s/$/" $DEVICE_NAME1.x"/ Makefile > tmpfile1
+mv tmpfile1 Makefile
+echo "$DEVICE_NAME1.o: \$(DHEADERS)/$DEVICE_NAME1.h" >> Makefile
+
+
+
+make install
+
+
+# make the drivers
+echo Updating $ENV_PREFIX/sys/lib/$DRIVER_LIB
+cd $ENV_PREFIX/sys/$DRIVER_DIR1
+make install
+
+
+## If CONFIG.TBL does not contain CFG_FILE_NAME,
+## then add it into CONFIG.TBL
+
+echo
+echo Modifying $ENV_PREFIX/sys/lynx.os/CONFIG.TBL
+
+
+cd $ENV_PREFIX/sys/lynx.os
+
+NEW=`grep I\:$CFG_FILE_NAME1 CONFIG.TBL`
+if [ "$NEW" = "" ]
+then
+    cp CONFIG.TBL CONFIG.TBL.noMPV955
+    echo "original CONFIG.TBL is moved to CONFIG.TBL.noMPV955"
+	echo "#############################" >> CONFIG.TBL
+	echo "# $TEXT_FILE" >> CONFIG.TBL
+	echo "I:$CFG_FILE_NAME1" >> CONFIG.TBL
+    echo "Added $CFG_FILE_NAME1 in CONFIG.TBL"
+else
+    echo "CONFIG.TBL already includes needed files"
+fi
+
+
+
+cd $ENV_PREFIX/sys/lynx.os
+echo
+echo Rebuilding the kernel
+echo
+make install
+errorcode=$?
+	if test $errorcode -ne 0
+	then
+		echo "make Status Return = $errorcode"
+		echo "make failure, aborting installation!"
+		exit -1
+	fi
+clear
+echo
+echo ------------------------------------------------------------------
+echo
+echo "The driver has been configured into the kernel.  "
+echo
+echo "Next step is to reboot the system with the command 'reboot -aN'"
+echo "to boot the system up with the newly configured components."
+echo
+echo
+echo ------------------------------------------------------------------
+
+exit 0

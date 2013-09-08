@@ -1,0 +1,25 @@
+0.0.5
+-nella funzione ioctl(): aggiunti i comandi GET_ZERO_VOLTS, SET_NCHAN,
+GET_NCHAN
+-definizione dei comandi ioctl in un header file separato mpv955ioctl.h
+-definizione della costane ZERO_VOLTS nel Makefile in modo da avere maggiore
+flessibilita'
+
+0.0.4
+-aggiunti script di installazione e disinstallazione del driver in modo
+dinamico (install.mpv955, uninstall.mpv955)
+
+0.0.3
+-aggiunta la funzione mpv955_ioctl()
+
+0.0.2
+-modificata la funzione mpv955_open() per evitare le race-condition
+
+0.0.1
+-prima versione
+-la comunicazione funziona solo in continuous mode
+
+
+
+Fioravante De Sapio <desapio82@libero.it>
+Francesco Saverio Ferrara <fs.ferrara@gmail.com>

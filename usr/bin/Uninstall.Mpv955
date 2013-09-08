@@ -1,0 +1,257 @@
+#!/bin/sh
+###############################################################################
+#                                                                             #
+#         MPV955 Digital-Analogic Converter Card Device Driver                #
+#                                                                             #
+#                       Copyright (C) 2005-2006                               #
+#               De Sapio Fioravante - desapio82@libero.it                     #
+#           Ferrara Francesco Saverio - fs.ferrara@gmail.com                  #
+#                                                                             #
+#                                                                             #
+# This program is free software; you can redistribute it and/or modify it     #
+# under the terms of the GNU General Public License as published by the Free  #
+# Software Foundation; either version 2 of the License, or (at your option)   #
+# any later version.                                                          #
+#                                                                             #
+# This program is distributed in the hope that it will be useful, but         #
+# WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY  #
+# or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License    #
+# for more details.                                                           #
+#                                                                             #
+# You should have received a copy of the GNU General Public License along     #
+# with this program; if not, write to the Free Software Foundation, Inc., 59  #
+# Temple Place - Suite 330, Boston, MA  02111-1307, USA.                      #
+#                                                                             #
+#                                                                             #
+###############################################################################
+#
+# Script di disinstallazione del dispositivo
+# 
+###############################################################################
+
+
+
+###############################################################################
+#
+# FUNZIONI UTILIZZATE
+# 
+###############################################################################
+
+
+function mpv955_static() {
+	DRIVER_LIB=libdrivers_vmpc.a
+	DEVICE_LIB=libdevices_vmpc.a
+	
+	DRIVER_NAME1=mpv955drvr
+	
+	
+	DEVICE_NAME1=mpv955info
+	
+	
+	
+	CFG_FILE_NAME1=MPV955.cfg
+	
+	TEXT_FILE="MPV955 Device Driver"
+	
+	
+	trap '' 1 2 3 15 18
+	
+	myname=$0
+	
+	
+	if [ "$REAL_KERN_INSTALL" = "lynx_kern_install" ]; then
+		echo "Cannot execute Install scripts with the environment"
+		echo "variable REAL_KERN_INSTALL set to lynx_kern_install."
+		echo "It must be customer_kern_install."
+		echo "Exiting ..."
+		exit 0;
+	fi
+	
+	if [ ! -r "$ENV_PREFIX/ENVIRONMENT" ]; then
+		echo "Cannot find ENVIRONMENT file in $ENV_PREFIX/";
+		echo "Exiting."
+		exit 0;
+	else
+		choice=`grep PLATFORM= $ENV_PREFIX/ENVIRONMENT | cut -f2 -d'='`
+	fi
+	
+	echo
+	echo Uninstalling $TEXT_FILE
+	echo
+	
+	response=invalid
+	while [ "$response" = "invalid" ]
+	do
+		echo -n "Proceed with uninstallation (y/n) [n]? "
+		read response
+		if [ "$response" = "" ]
+		then
+			response=n
+		fi
+		case $response in
+			Y*|y*)
+				response=yes;;
+			N*|n*)
+				echo "quitting installation.";
+				response=no;
+				exit 0;;
+			*)
+				response=invalid;;
+		esac
+	done
+	
+	
+	
+	
+	cd $ENV_PREFIX/sys/lib
+	
+	echo
+	echo Updating $ENV_PREFIX/sys/lib/$DRIVER_LIB
+	echo
+	ar dv $DRIVER_LIB $DRIVER_NAME1.o
+	ranlib $DRIVER_LIB
+	
+	echo
+	echo Updating $ENV_PREFIX/sys/lib/$DEVICE_LIB
+	echo
+	ar dv $DEVICE_LIB $DEVICE_NAME1.o
+	ranlib $DEVICE_LIB
+	
+	cd $ENV_PREFIX/sys/devices.vmpc
+	cp Makefile Makefile.MPV955
+	sed /^FILES/s/" $DEVICE_NAME1.x"// Makefile > tmpfile1
+	mv tmpfile1 Makefile
+	sed /^$DEVICE_NAME1.o/d Makefile > tmpfile1
+	mv tmpfile1 Makefile
+	
+	
+	
+	echo
+	echo Modifying $ENV_PREFIX/sys/lynx.os/CONFIG.TBL
+	echo
+	cd $ENV_PREFIX/sys/lynx.os
+	cp CONFIG.TBL CONFIG.TBL.MPV955
+	sed s/^"# $TEXT_FILE"// CONFIG.TBL > tmpfile1
+	mv tmpfile1 CONFIG.TBL
+	sed s/^I:"$CFG_FILE_NAME1"// CONFIG.TBL > tmpfile1
+	mv tmpfile1 CONFIG.TBL
+	
+	
+	
+	cd $ENV_PREFIX/sys/lynx.os
+	echo
+	echo Rebuilding the kernel
+	echo
+	make install
+		errorcode=$?
+		if test $errorcode -ne 0
+		then
+			echo "make Status Return = $errorcode"
+			echo "make failure, aborting deinstallation!"
+			exit -1
+		fi
+	
+	clear
+	echo
+	echo ------------------------------------------------------------------
+	echo
+	echo "The driver has been removed  from the kernel configuration.  "
+	echo
+	echo "Next step is to reboot the system with the command 'reboot -aN'"
+	echo "to boot the system up with the newly configured components."
+	echo
+	echo ------------------------------------------------------------------
+}
+
+function mpv955_dynamic() {
+	DRIVER_NAME=MPV955.DRIVER
+	DEVICE_INFO=mpv955info
+	DEV_FILENAME=mpv955
+	DEV_FILEPATH=/dev/$DEV_FILENAME
+	
+	response=invalid
+	while [ "$response" = "invalid" ]
+	do
+		echo -n "Proceed with uninstallation (y/n) [n]? "
+		read response
+		if [ "$response" = "" ]
+		then
+			response=n
+		fi
+		case $response in
+			Y*|y*)
+				response=yes;;
+			N*|n*)
+				echo "quitting installation.";
+				response=no;
+				exit 0;;
+			*)
+				response=invalid;;
+		esac
+	done
+	
+	# Ricerca/Rimozione di tutti i major number associati al driver
+	j=0;
+	for i in `devices | grep $DEVICE_INFO | cut -c0-3`
+	do
+		let "j=j+1";
+		devinstall -u -c $i # Disinstallo il dispositivo n°$j nella lista
+		echo $j - Uninstalled device with major number $i
+	done
+	
+	
+	# Ricerca/Rimozione del driver id associato al driver
+	for i in `drivers | grep MPV955 | cut -c0-3`
+	do
+		# A differenze dei device, il driver deve essere unico
+		drinstall -u $i # Disinstallato il driver
+		echo Uninstaled driver with id $i
+	done
+	
+	
+	# Cancellazione di /dev/mpv955
+	rm -rf ${DEV_FILEPATH}*
+	
+	
+	
+	# Cancellazione file superflui
+	cd /sys/drivers.vmpc/MPV955
+	make clean -f Makefile_dyn
+	make clear -f Makefile_dyn
+	rm -rf ./mpv955info # File contenente le device info
+	
+	almavmechan -vmememprint
+}
+
+###############################################################################
+#                                                                             
+# CORPO DELLO SCRIPT                                                            
+#                                                                             
+###############################################################################
+
+scelta=invalid
+while [ "$scelta" = "invalid" ]
+do
+	echo -n "Static or Dynamic (s/d) [s]? "
+	read scelta
+	if [ "$scelta" = "" ]
+	then
+		scelta=s
+	fi
+
+	case $scelta in
+		S*|s*)
+			echo
+			echo "Static Installation";
+			scelta=static;
+			mpv955_static;;
+		D*|d*)
+			echo "Dynamic Installation";
+			scelta=dynamic;
+			mpv955_dynamic;;
+		*)
+			scelta=invalid;;
+	esac
+done
+
+exit 0;

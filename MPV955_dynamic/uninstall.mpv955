@@ -1,0 +1,100 @@
+#! /bin/bash
+
+###############################################################################
+#                                                                             #
+#         MPV955 Digital-Analogic Converter Card Device Driver                #
+#                                                                             #
+#                       Copyright (C) 2005-2006                               #
+#               De Sapio Fioravante - desapio82@libero.it                     #
+#           Ferrara Francesco Saverio - fs.ferrara@gmail.com                  #
+#                                                                             #
+#                                                                             #
+# This program is free software; you can redistribute it and/or modify it     #
+# under the terms of the GNU General Public License as published by the Free  #
+# Software Foundation; either version 2 of the License, or (at your option)   #
+# any later version.                                                          #
+#                                                                             #
+# This program is distributed in the hope that it will be useful, but         #
+# WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY  #
+# or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License    #
+# for more details.                                                           #
+#                                                                             #
+# You should have received a copy of the GNU General Public License along     #
+# with this program; if not, write to the Free Software Foundation, Inc., 59  #
+# Temple Place - Suite 330, Boston, MA  02111-1307, USA.                      #
+#                                                                             #
+#                                                                             #
+###############################################################################
+#
+# Script di disinstallazione del dispositivo
+#
+###############################################################################
+
+
+
+###############################################################################
+#
+# SEZIONE COSTANTI
+#
+###############################################################################
+
+DRIVER_NAME=MPV955.DRIVER
+DEVICE_INFO=mpv955info
+DEV_FILENAME=mpv955
+DEV_FILEPATH=/dev/$DEV_FILENAME
+
+
+
+###############################################################################
+#
+# CORPO DELLO SCRIPT
+#
+###############################################################################
+
+# Ricerca/Rimozione di tutti i major number associati al driver
+j=0;
+for i in `devices | grep $DEVICE_INFO | cut -c0-3`
+do
+	let "j=j+1";
+	devinstall -u -c $i # Disinstallo il dispositivo n°$j nella lista
+	echo $j - Uninstalled device with major number $i
+done
+
+
+# Ricerca/Rimozione del driver id associato al driver
+for i in `drivers | grep MPV955 | cut -c0-3`
+do
+	# A differenze dei device, il driver deve essere unico
+	drinstall -u $i # Disinstallato il driver
+	echo Uninstaled driver with id $i
+done
+
+
+# Cancellazione di /dev/mpv955
+rm -rf ${DEV_FILEPATH}*
+
+
+
+# Rimozione degli include file
+rm -rf /usr/include/mpv955ioctl.h
+
+
+
+# Cancellazione file superflui
+make clean
+make clear
+rm -rf ./mpv955info # File contenente le device info
+
+
+
+###############################################################################
+#
+# FINE SCRIPT: OPERAZIONI DI CHIUSURA
+#
+###############################################################################
+
+# Stampa informazioni sul canale allocato
+almavmechan -vmememprint
+
+# Esco ritornando un indicatore di successo
+exit 0;

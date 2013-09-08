@@ -1,0 +1,143 @@
+#! /bin/bash
+
+###############################################################################
+#                                                                             #
+#         MPV955 Digital-Analogic Converter Card Device Driver                #
+#                                                                             #
+#                       Copyright (C) 2005-2006                               #
+#               De Sapio Fioravante - desapio82@libero.it                     #
+#           Ferrara Francesco Saverio - fs.ferrara@gmail.com                  #
+#                                                                             #
+#                                                                             #
+# This program is free software; you can redistribute it and/or modify it     #
+# under the terms of the GNU General Public License as published by the Free  #
+# Software Foundation; either version 2 of the License, or (at your option)   #
+# any later version.                                                          #
+#                                                                             #
+# This program is distributed in the hope that it will be useful, but         #
+# WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY  #
+# or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License    #
+# for more details.                                                           #
+#                                                                             #
+# You should have received a copy of the GNU General Public License along     #
+# with this program; if not, write to the Free Software Foundation, Inc., 59  #
+# Temple Place - Suite 330, Boston, MA  02111-1307, USA.                      #
+#                                                                             #
+#                                                                             #
+###############################################################################
+#
+# Script di installazione del dispositivo
+#
+###############################################################################
+
+
+
+###############################################################################
+#
+# SEZIONE COSTANTI
+#
+###############################################################################
+
+DRIVER_NAME=MPV955.DRIVER
+DEVICE_INFO=mpv955info
+DEV_FILENAME=mpv955
+DEV_FILEPATH=/dev/$DEV_FILENAME
+
+
+
+###############################################################################
+#
+# CORPO DELLO SCRIPT
+#
+###############################################################################
+
+### Compilo ed eseguo i file necessari
+make
+if [ $? -ne 0 ]
+then
+	echo Comando make fallito
+	exit 1;
+fi
+./mpv955info.run
+
+
+
+### Ricerca/Installazione del device driver
+trovato=0; # Non ancora e' stato trovato un driver corretto per il sistema
+driver_id=-1; # Valore fittizzio
+
+while [ $driver_id -eq -1 ] # Fin quando non e' installato un driver
+do
+	for i in `drivers | grep $DRIVER_NAME | cut -c0-3`
+	do # c'e' almeno una record, quindi esiste gia' un driver
+		driver_id=$i; # Conservo il driver id
+        	echo driver id $driver_id
+		trovato=1; # Non e' necessario reinstallare il driver
+	done
+
+	if [ $trovato -eq 0 ] # Non c'e' un driver installato
+	then
+		drinstall -c $DRIVER_NAME # Installo il driver
+		if [ $? -ne 0 ] # Errore installando il driver
+		then 
+        		echo Comando drinstall fallito
+        		exit 1; # Esco dallo script
+		fi
+	fi
+done
+
+
+
+### Ricerca/Installazione dispositivo fisico
+trovato=0; # Non ancora e' stato trovato un dispositivo installato per il sistema
+major=-1; # Valore fittizzio
+
+while [ $major -eq -1 ] # Fin quando non e' installato un dispositivo
+do
+	for i in `devices | grep $DEVICE_INFO | cut -c0-3`
+	do # c'e' almeno una record, quindi esiste gia' un dispositivo
+		major=$i; # Conservo il major number
+        	echo major number $major
+		trovato=1; # Non e' necessario reinstallare il dispositivo
+	done
+
+	if [ $trovato -eq 0 ] # Non c'e' un device installato
+	then
+		devinstall -c -d $driver_id $DEVICE_INFO # Installo il device
+		if [ $? -ne 0 ] # Errore installando il device
+		then 
+        		echo Comando devinstall fallito
+        		exit 1; # Esco dallo script
+		fi
+	fi
+done
+
+
+
+### Installazione del file /dev/mpv955
+if [ -e $DEV_FILEPATH ]
+then
+	rm -rf $DEV_FILEPATH
+fi
+
+mknod $DEV_FILEPATH c $major 0
+
+
+
+### Copia degli include file necessari
+cp mpv955ioctl.h /usr/include/
+
+
+
+###############################################################################
+#
+# FINE SCRIPT: OPERAZIONI DI CHIUSURA
+#
+###############################################################################
+
+# Stampa informazioni sul canale allocato
+almavmechan -vmememprint
+
+# Esco ritornando un indicatore di successo
+exit 0;
+
